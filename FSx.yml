@@ -1,0 +1,79 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: S3 Buckets use for keep csv data
+Parameters:
+  IndexBucketName:
+    Description: S3 bucket name using for keep index file
+    Type: String
+    Default: enhance-pricingbulkapi-index
+  StorageType:
+    Description: Storage Type
+    Type: Number
+    Default: SSD
+    AllowedValues:
+      - SSD
+      - HDD
+  StorageCapacitySSD:
+    Description: Storage capacity (If you choose storage type is SSD, configure this parameter.)
+    Type: Number
+    Default: 32
+    MinValue: 32
+    MaxValue: 65536
+  StorageCapacityHDD:
+    Description: Storage capacity (If you choose storage type is HDD, configure this parameter.)
+    Type: Number
+    Default: 2000
+    MinValue: 2000
+    MaxValue: 65536
+  WeeklyMaintenanceStartTime:
+    Description: Weekly maintenance start time
+    Type: String
+    Default: 2:20:30
+  DailyAutomaticBackupStartTime:
+    Description: Daily backup start time
+    Type: String
+    Default: 16:30
+  AutomaticBackupRetentionDays:
+    Description: Automatic backupdata retention days
+    Type: Number
+    Default: 7
+  SecurityGroupId:
+    Description: SecurityGroupID
+    Type: String
+    Default: sg-1a2b3c4d5e6f
+  ActiveDirectoryId:
+    Description: Active Directory ID
+    Type: String
+    Default: hogehogefugafuga
+  
+Resources:
+  IndexBucket:
+    Type: AWS::FSx::FileSystem
+    Properties: 
+      FileSystemType: WINDOWS
+      SecurityGroupIds: 
+        - !Ref SecurityGroupId
+      StorageCapacity: !Ref StorageCapacity
+      StorageType: !Ref StorageType
+      SubnetIds: 
+        - !Ref SubnetId
+      WindowsConfiguration: 
+          ActiveDirectoryId: !Ref ActiveDirectoryId
+          AutomaticBackupRetentionDays: !Ref AutomaticBackupRetentionDays
+          DailyAutomaticBackupStartTime: !Ref DailyAutomaticBackupStartTime
+          DeploymentType: "SINGLE_AZ_1"
+          # PreferredSubnetId: String
+          ThroughputCapacity: 16
+          WeeklyMaintenanceStartTime: !Ref WeeklyMaintenanceStartTime
+
+
+Outputs:
+  ActiveDrictoryID:
+    Description: S3 bucket name using for keep index file
+    Value: !Ref IndexBucket
+    Export:
+      Name: IndexBucketName
+  FSxID:
+    Description: S3 bucket ARN using for keep index file
+    Value: !GetAtt IndexBucket.Arn
+    Export:
+      Name: IndexBucketARN

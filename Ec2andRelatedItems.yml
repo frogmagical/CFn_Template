@@ -1,0 +1,171 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Get Reserved Instance data and put s3 bucket.
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:    
+      - Label:
+          default: "Parameters for EC2"
+        Parameters:
+          - InstanceName
+          - InstanceType
+          - SecurityGroupId
+          - SubnetId
+          - AMIID
+          - AssociatePublicIpAddress
+      - Label:
+          default: "Parameters for EBS"
+        Parameters:
+          - EBS01VolumeSize
+          - EBS01IOPS
+          - EBS02VolumeSize
+          - EBS02IOPS
+      - Label:
+          default: "Pem key Name"
+        Parameters:
+          -  KeyPairName
+
+# ------------------------ #
+#  Set environment params  #
+# ------------------------ #
+Parameters:
+  InstanceName:
+    Description: Instance Name
+    Type: String
+    Default: YourInstance
+  InstanceType:
+    Description: Instance Type
+    Type: String
+    Default: t3.medium
+  SecurityGroupId:
+    Description: Security Group ID
+    Type: String
+    Default: sg-a1b2c3d4e5f6
+  SubnetId:
+    Description: Subnet ID
+    Type: String
+    Default: subnet-a1b2c3d
+  AMIID:
+    Description: AMI ID (Amazon Linux 2023 AMI 2023.1.20230825.0 x86_64 HVM kernel-6.1)
+    Type: String
+    Default: ami-0310b105770df9334
+  EBS01VolumeSize: 
+    Description: EBS Volime Size
+    Type: Number
+    Default: 30
+  EBS01IOPS: 
+    Description: EBS IOPS
+    Type: Number
+    Default: 3000
+  EBS02VolumeSize: 
+    Description: EBS Volime Size
+    Type: Number
+    Default: 20
+  EBS02IOPS: 
+    Description: EBS IOPS
+    Type: Number
+    Default: 3000
+  KeyPairName:
+    Description: Key pair name
+    Type: String
+    Default: TestKeyforEC2
+  AssociatePublicIpAddress:
+    Description: Associate PublicIP
+    Type: String
+    Default: false
+    AllowedValues:
+      - true
+      - false
+
+# ------------------------------------------------------ #
+#  IAMRole/Policy, Instance Profile
+# ------------------------------------------------------ #
+Resources:
+  EC2Role:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument: 
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: 
+                - ec2.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Description: !Sub "Using for ${InstanceName}"
+      Path: /
+      RoleName: !Sub "${InstanceName}Role"
+      
+  ManagedPolicyForEC2Role:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: !Sub "${InstanceName}ManagedPolicy"
+      Path: /
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - "*"
+            Resource: "*"
+      Roles:
+        - !Sub "${InstanceName}Role"
+    DependsOn:
+         - ManagedPolicyForEC2Role
+
+  InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties: 
+      InstanceProfileName: !Sub "${InstanceName}InstanceProfile"
+      Path: /
+      Roles: 
+        - !Sub "${InstanceName}Role"
+    DependsOn:
+         - ManagedPolicyForEC2Role
+         - EC2Role
+# ------------------------------------------------------ #
+#  Key Pair, EC2
+# ------------------------------------------------------ #
+  KeyPair:
+    Type: AWS::EC2::KeyPair
+    Properties: 
+      KeyFormat: pem
+      KeyName: !Ref KeyPairName
+      KeyType: rsa
+
+  TestSysytemEc2:
+    Type: AWS::EC2::Instance
+    Properties: 
+      AvailabilityZone: ap-northeast-1a
+      BlockDeviceMappings: 
+        - DeviceName: /dev/xvda
+          Ebs: 
+            DeleteOnTermination: true
+            Encrypted: false
+            Iops: !Ref EBS01IOPS
+            VolumeSize: !Ref EBS01VolumeSize
+            VolumeType: gp3
+        - DeviceName: /dev/xvdb
+          Ebs: 
+            DeleteOnTermination: true
+            Encrypted: false
+            Iops: !Ref EBS02IOPS
+            VolumeSize: !Ref EBS02VolumeSize
+            VolumeType: gp3
+      IamInstanceProfile: !Sub "${InstanceName}InstanceProfile"
+      ImageId: !Ref AMIID
+      InstanceType: !Ref InstanceType
+      KeyName: !Ref KeyPairName
+      Monitoring: False
+      PropagateTagsToVolumeOnCreation: True
+      NetworkInterfaces: 
+        - AssociatePublicIpAddress: !Ref AssociatePublicIpAddress
+          DeviceIndex: "0"
+          GroupSet: 
+            - !Ref SecurityGroupId
+          SubnetId: 
+            !Ref SubnetId
+      Tags: 
+        - Key: "Name"
+          Value: !Ref InstanceName
+      # UserData: String

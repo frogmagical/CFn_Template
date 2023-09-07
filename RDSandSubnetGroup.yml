@@ -1,0 +1,137 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Get Reserved Instance data and put s3 bucket.
+
+MetaData:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: "Parameters for SubnetGroup"
+        Parameters:
+          - SubnetID01
+          - SubnetID02
+      - Label:
+          default: "Parameters for RDS"
+        Parameters:
+          - BackupRetentionPeriod
+          - DBInstanceClass
+          - DBInstanceIdentifier
+          - Engine
+          - EngineVersion
+          - MasterUserPassword
+          - PreferredBackupWindow
+          - SecurityGroupID
+      - Label:
+          default: "Parameters for RDS strage"
+        Parameters:
+          - AllocatedStorage
+          - IOPS
+          - StorageThroughput
+          - StorageType
+          
+# ------------------------ #
+#  Set environment params  #
+# ------------------------ #
+Parameters:
+  SubnetID01:
+    Description: SubnetID AZ-1
+    Type: String
+    Default: subnet-a1b2c3d4
+  SubnetID02:
+    Description: SubnetID AZ-2
+    Type: String
+    Default: subnet-e5f6g7h8
+  BackupRetentionPeriod:
+    Description: Days of retention backup data
+    Type: Number
+    Default: 30
+  DBInstanceClass:
+    Description: DBInstance class
+    Type: String
+    Default: db.m4.large
+  DBInstanceIdentifier:
+    Description: DBInstance identifier
+    Type: String
+    Default: testdb01
+  Engine:
+    Description: DBEngine
+    Type: String
+    Default: sqlserver-se
+  EngineVersion:
+    Description: DBEngine version
+    Type: String
+    Default: 15.00.4316.3.v1
+  MasterUserPassword:
+    Description: Master user password (8 to 128 char)
+    Type: String
+    Default: passw0rd
+  PreferredBackupWindow:
+    Description: you preferred backup window time(UTC)
+    Type: String
+    Default: 15:00-17:00
+  SecurityGroupID:
+    Description: Security Group ID
+    Type: String
+    Default: sg-1a2b3c4d5f6g
+  AllocatedStorage:
+    Description: Allocated storage(GiB)
+    Type: Number
+    Default: 80
+  StorageType:
+    Description: Storage type
+    Type: String
+    Default: gp3
+  IOPS:
+    Description: Storage IOPS
+    Type: Number
+    Default: 3000
+  StorageThroughput:
+    Description: Storage throughput
+    Type: Number
+    Default: 125
+
+# ------------------------------------------------------ #
+#  RDS SubnetGroup
+# ------------------------------------------------------ #
+Resources:
+  SubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties: 
+      DBSubnetGroupDescription: !Sub $(DBInstanceIdentifier) use SubnetGroup
+      DBSubnetGroupName: !Sub $(DBInstanceIdentifier)SubnetGroup
+      SubnetIds: 
+        - !Ref SubnetID01
+        - !Ref SubnetID02
+
+# ------------------------------------------------------ #
+#  RDS DBInstance
+# ------------------------------------------------------ #
+  RDSDBInstance:
+    Type: AWS::RDS::DBInstance
+    Properties: 
+      AllocatedStorage: !Ref AllocatedStorage
+      AllowMajorVersionUpgrade: False
+      AutoMinorVersionUpgrade: False
+      BackupRetentionPeriod: !Ref BackupRetentionPeriod
+      DBInstanceClass: !Ref DBInstanceClass
+      DBInstanceIdentifier: !Ref DBInstanceIdentifier
+      DBParameterGroupName: !ImportValue SampleDBParameterGroupName
+      DBSubnetGroupName: !Ref SubnetGroup
+      DeleteAutomatedBackups: False
+      DeletionProtection: False
+      EnablePerformanceInsights: True
+      Engine: !Ref Engine
+      EngineVersion: !Ref EngineVersion
+      IOPS: !Ref IOPS
+      LicenseModel: license-included
+      MasterUsername: Administrator
+      MasterUserPassword: !Ref MasterUserPassword
+      MultiAZ: True
+      NetworkType: IPV4
+      OptionGroupName: !ImportValue SampleOptionGroup
+      PreferredBackupWindow: !Ref PreferredBackupWindow
+      StorageEncrypted: True
+      StorageThroughput: !Ref StorageThroughput
+      StorageType: !Ref StorageType
+      Timezone: "Tokyo Standard Time"
+      VPCSecurityGroups: 
+        - !Ref SecurityGroupID
